@@ -60,19 +60,19 @@ def IntConst(n):
     return Constant(str(n),n)
 
 def SqrtExpr(x):
-    return Unary("sqrt", x, lambda x:x+1, math.sqrt)
+    return Unary("sqrt", x, lambda x:2*x+1, math.sqrt)
 
 def SinExpr(x):
-    return Unary("sin", x, lambda x:x+1, math.sin)
+    return Unary("sin", x, lambda x:2*x+1, math.sin)
 
 def CosExpr(x):
-    return Unary("cos", x, lambda x:x+1, math.cos)
+    return Unary("cos", x, lambda x:2*x+1, math.cos)
 
 def TanExpr(x):
-    return Unary("tan", x, lambda x:x+1, math.tan)
+    return Unary("tan", x, lambda x:2*x+1, math.tan)
 
 def LogExpr(x):
-    return Unary("log", x, lambda x:x+1, math.log)
+    return Unary("log", x, lambda x:2*x+1, math.log)
 
 class NumFinder:
     def __init__(self):
@@ -107,9 +107,9 @@ class NumFinder:
         except ValueError:
             return 100.0
         if diff < self.epsilon:
-            return -100.0/math.sqrt(Y.complexity())
+            return -100.0
         try:
-            return -math.log(1/diff)/math.sqrt(Y.complexity())
+            return -math.log(abs(X)/diff)
         except:
             return 100.0
 
@@ -137,7 +137,8 @@ class NumFinder:
 
         for expr in self.constants:
             allExpr.add(expr)
-            exprPQ.append((self.search_heuristic(X, expr),expr))
+            heur, comp = self.search_heuristic(X, expr), expr.complexity()
+            exprPQ.append((heur,comp-heur,expr))
         heapq.heapify(exprPQ)
 
         tryThisMany = 0
@@ -145,7 +146,7 @@ class NumFinder:
             tryThisMany += 1
             if tryThisMany % 10000 == 0:
                 print("Tried so far: {0}".format(tryThisMany))
-            newHeur, nextExpr = heapq.heappop(exprPQ)
+            newHeur, newComplexity, nextExpr = heapq.heappop(exprPQ)
             if heur is None or heur > newHeur:
                 heur,bfsf=newHeur,nextExpr
                 print("best found so far: {0} (confidence: {1})".format(bfsf, -heur))
@@ -155,7 +156,8 @@ class NumFinder:
                 unryExpr = unry(nextExpr)
                 if unryExpr in allExpr or unryExpr.complexity() >= self.max_complexity:
                     continue
-                heapq.heappush(exprPQ,(self.search_heuristic(X, unryExpr), unryExpr))
+                unryHeur, unryComp = self.search_heuristic(X, unryExpr), unryExpr.complexity()
+                heapq.heappush(exprPQ,(unryHeur, unryComp-unryHeur, unryExpr))
                 
              
         return (bfsf, -heur)
