@@ -50,19 +50,19 @@ def IntConst(n):
     return Constant(str(n),n)
 
 def SqrtExpr(x):
-    return Unary("sqrt", x, lambda x:x+1, lambda x:math.sqrt(x))
+    return Unary("sqrt", x, lambda x:x+1, math.sqrt)
 
 def SinExpr(x):
-    return Unary("sin", x, lambda x:x+1, lambda x:math.sin(x))
+    return Unary("sin", x, lambda x:x+1, math.sin)
 
 def CosExpr(x):
-    return Unary("cos", x, lambda x:x+1, lambda x:math.cos(x))
+    return Unary("cos", x, lambda x:x+1, math.cos)
 
 def TanExpr(x):
-    return Unary("tan", x, lambda x:x+1, lambda x:math.tan(x))
+    return Unary("tan", x, lambda x:x+1, math.tan)
 
 def LogExpr(x):
-    return Unary("log", x, lambda x:x+1, lambda x:math.log(x))
+    return Unary("log", x, lambda x:x+1, math.log)
 
 class NumFinder:
     def __init__(self):
@@ -89,11 +89,11 @@ class NumFinder:
         return self
 
     def search_heuristic(self, X, Y):
-        diff = abs(X-Y)
+        diff = abs(X-Y.value())
         if diff < self.epsilon:
-            return 100
+            return 100/math.sqrt(Y.complexity())
         try:
-            return math.log(1/diff)
+            return math.log(1/diff)/math.sqrt(Y.complexity())
         except:
             return -100
 
@@ -109,13 +109,13 @@ class NumFinder:
         bfsf = None
         heur = None
         for expr in self.constants:
-            constHeur = self.search_heuristic(expr.value(),X)
+            constHeur = self.search_heuristic(X, expr)
             if heur is None or heur < constHeur:
                 heur=constHeur
                 bfsf=expr
             for unry in self.unaries:
                 unryExpr = unry(expr)
-                unryHeur = self.search_heuristic(unryExpr.value(),X)
+                unryHeur = self.search_heuristic(X, unryExpr)
                 if heur is None or heur < unryHeur:
                     heur=unryHeur
                     bfsf=unryExpr
