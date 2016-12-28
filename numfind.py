@@ -35,10 +35,10 @@ class Unary(Expression):
         self.expr_func = exprFunc
 
     def complexity(self):
-        return self.complex_func(self.innerExpr.complexity())
+        return self.complex_func(self.inner_expr.complexity())
 
     def value(self):
-        return self.expr_func(self.innerExpr.value())
+        return self.expr_func(self.inner_expr.value())
 
     def __str__(self):
         return "{0}({1})".format(self.expr_name, str(self.inner_expr))
@@ -79,6 +79,12 @@ class NumFinder:
             if heur is None or heur < constHeur:
                 heur=constHeur
                 bfsf=expr
+            sqrtExpr = SqrtExpr(expr)
+            sqrtHeur = self.search_heuristic(sqrtExpr.value(),X)
+            if heur is None or heur < sqrtHeur:
+                heur=sqrtHeur
+                bfsf=sqrtExpr
+
         return (bfsf, heur)
 
 def main():
