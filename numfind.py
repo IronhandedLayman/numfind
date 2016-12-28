@@ -2,6 +2,7 @@
 
 import argparse
 import math
+import heapq
 
 class Expression:
     def complexity(self):
@@ -9,6 +10,15 @@ class Expression:
 
     def value(self):
         return 0.0
+
+    def __lt__(self, other):
+        return str(self)<str(other)
+
+    def __eq__(self, other):
+        return str(self)==str(other)
+
+    def __hash__(self):
+        return str(self).__hash__()
 
     def __str__(self):
         return "0"
@@ -67,6 +77,8 @@ def LogExpr(x):
 class NumFinder:
     def __init__(self):
         self.set_max_complexity(30).set_epsilon(1e-9).reset_constants().reset_unaries()
+        self.set_search_depth(100000)
+        self.set_confirm_found(10)
 
     def reset_constants(self):
         self.constants = set()
@@ -89,16 +101,28 @@ class NumFinder:
         return self
 
     def search_heuristic(self, X, Y):
-        diff = abs(X-Y.value())
-        if diff < self.epsilon:
-            return 100/math.sqrt(Y.complexity())
+        diff = None
         try:
-            return math.log(1/diff)/math.sqrt(Y.complexity())
+            diff = abs(X-Y.value())
+        except ValueError:
+            return 100.0
+        if diff < self.epsilon:
+            return -100.0/math.sqrt(Y.complexity())
+        try:
+            return -math.log(1/diff)/math.sqrt(Y.complexity())
         except:
-            return -100
+            return 100.0
 
     def set_max_complexity(self, newcomp):
         self.max_complexity = newcomp
+        return self
+
+    def set_search_depth(self, newsd):
+        self.search_depth = newsd
+        return self
+    
+    def set_confirm_found(self, newcf):
+        self.confirm_found = newcf
         return self
 
     def set_epsilon(self, neweps):
@@ -108,19 +132,33 @@ class NumFinder:
     def find(self, X):
         bfsf = None
         heur = None
-        for expr in self.constants:
-            constHeur = self.search_heuristic(X, expr)
-            if heur is None or heur < constHeur:
-                heur=constHeur
-                bfsf=expr
-            for unry in self.unaries:
-                unryExpr = unry(expr)
-                unryHeur = self.search_heuristic(X, unryExpr)
-                if heur is None or heur < unryHeur:
-                    heur=unryHeur
-                    bfsf=unryExpr
+        allExpr = set()
+        exprPQ = []
 
-        return (bfsf, heur)
+        for expr in self.constants:
+            allExpr.add(expr)
+            exprPQ.append((self.search_heuristic(X, expr),expr))
+        heapq.heapify(exprPQ)
+
+        tryThisMany = 0
+        while len(exprPQ) > 0 and tryThisMany < self.search_depth:
+            tryThisMany += 1
+            if tryThisMany % 10000 == 0:
+                print("Tried so far: {0}".format(tryThisMany))
+            newHeur, nextExpr = heapq.heappop(exprPQ)
+            if heur is None or heur > newHeur:
+                heur,bfsf=newHeur,nextExpr
+                print("best found so far: {0} (confidence: {1})".format(bfsf, -heur))
+            if -heur > self.confirm_found:
+                break
+            for unry in self.unaries:
+                unryExpr = unry(nextExpr)
+                if unryExpr in allExpr or unryExpr.complexity() >= self.max_complexity:
+                    continue
+                heapq.heappush(exprPQ,(self.search_heuristic(X, unryExpr), unryExpr))
+                
+             
+        return (bfsf, -heur)
 
 def main():
     parser = argparse.ArgumentParser(description='Find numbers close to a given constant or expression')
