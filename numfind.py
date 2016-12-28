@@ -13,6 +13,9 @@ class Expression:
     def __str__(self):
         return "0"
 
+    def __repr__(self):
+        return "Expr({0})".format(self)
+
 class Constant(Expression):
     def __init__(self, name, inner_val):
         self.name = name
@@ -49,27 +52,58 @@ def IntConst(n):
 def SqrtExpr(x):
     return Unary("sqrt", x, lambda x:x+1, lambda x:math.sqrt(x))
 
+def SinExpr(x):
+    return Unary("sin", x, lambda x:x+1, lambda x:math.sin(x))
+
+def CosExpr(x):
+    return Unary("cos", x, lambda x:x+1, lambda x:math.cos(x))
+
+def TanExpr(x):
+    return Unary("tan", x, lambda x:x+1, lambda x:math.tan(x))
+
+def LogExpr(x):
+    return Unary("log", x, lambda x:x+1, lambda x:math.log(x))
+
 class NumFinder:
     def __init__(self):
-        self.constants = set()
-        self.max_complexity = 30
-        self.reset_constants()
+        self.set_max_complexity(30).set_epsilon(1e-9).reset_constants().reset_unaries()
 
     def reset_constants(self):
         self.constants = set()
-        self.add_constant(Constant("pi",math.pi))
-        self.add_constant(Constant("e",math.e))
+        self.add_constant(Constant("pi",math.pi)).add_constant(Constant("e",math.e))
         for n in range(1,101):
             self.add_constant(IntConst(n))
+        return self
+
+    def reset_unaries(self):
+        self.unaries = set()
+        self.add_unary(SqrtExpr).add_unary(SinExpr).add_unary(CosExpr).add_unary(TanExpr).add_unary(LogExpr)
+        return self
 
     def add_constant(self, expr):
         self.constants.add(expr)
+        return self
+
+    def add_unary(self, unary):
+        self.unaries.add(unary)
+        return self
 
     def search_heuristic(self, X, Y):
+        diff = abs(X-Y)
+        if diff < self.epsilon:
+            return 100
         try:
-            return math.log(1/abs(X-Y))
+            return math.log(1/diff)
         except:
-            return -999 #TODO: does this constant even make sense?
+            return -100
+
+    def set_max_complexity(self, newcomp):
+        self.max_complexity = newcomp
+        return self
+
+    def set_epsilon(self, neweps):
+        self.epsilon = neweps
+        return self
 
     def find(self, X):
         bfsf = None
@@ -79,11 +113,12 @@ class NumFinder:
             if heur is None or heur < constHeur:
                 heur=constHeur
                 bfsf=expr
-            sqrtExpr = SqrtExpr(expr)
-            sqrtHeur = self.search_heuristic(sqrtExpr.value(),X)
-            if heur is None or heur < sqrtHeur:
-                heur=sqrtHeur
-                bfsf=sqrtExpr
+            for unry in self.unaries:
+                unryExpr = unry(expr)
+                unryHeur = self.search_heuristic(unryExpr.value(),X)
+                if heur is None or heur < unryHeur:
+                    heur=unryHeur
+                    bfsf=unryExpr
 
         return (bfsf, heur)
 
