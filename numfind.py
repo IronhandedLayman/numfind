@@ -6,6 +6,7 @@ import heapq
 
 class Expression:
     _memorepr = None
+    _memohash = None
     def complexity(self):
         return 1
 
@@ -19,13 +20,17 @@ class Expression:
         return str(self)==str(other)
 
     def __hash__(self):
-        return str(self).__hash__()
+        if self._memohash is None:
+            self._memohash = str(self).__hash__()
+        return self._memohash
 
     def __str__(self):
         return "0"
 
     def __repr__(self):
-        return "Expr("+str(self)+")"
+        if self._memorepr is None:
+            self._memorepr = "Expr("+str(self)+")"
+        return self._memorepr
 
 class Constant(Expression):
     def __init__(self, name, inner_val):
@@ -134,6 +139,7 @@ class NumFinder:
         #defaults
         self.set_max_complexity(15).set_epsilon(1e-9)
         self.set_search_depth(100000).set_confirm_found(10)
+        self.set_debug(True)
 
         #base set of constants
         self.reset_constants().reset_unaries().reset_binaries()
@@ -199,6 +205,10 @@ class NumFinder:
         self.epsilon = neweps
         return self
 
+    def set_debug(self, debugflag):
+        self.debug = debugflag
+        return self
+
     def find(self, X):
         bfsf = None
         heur = None
@@ -214,14 +224,15 @@ class NumFinder:
         tryThisMany = 0
         while len(exprPQ) > 0 and tryThisMany < self.search_depth:
             tryThisMany += 1
-            if tryThisMany % 1000 == 0:
+            if self.debug and tryThisMany % 1000 == 0:
                 print("Tried so far: {0}".format(tryThisMany))
             _, newHeur, nextExpr = heapq.heappop(exprPQ)
             if nextExpr.complexity() > allExpr.get(nextExpr.value(),(100,0))[0]:
                 continue
             if heur is None or heur > newHeur:
                 heur,bfsf=newHeur,nextExpr
-                print("best found so far: {0} (confidence: {1})".format(bfsf, -heur))
+                if self.debug:
+                    print("best found so far: {0} (confidence: {1})".format(bfsf, -heur))
             if -heur > self.confirm_found:
                 break
 
@@ -253,12 +264,23 @@ class NumFinder:
 def main():
     parser = argparse.ArgumentParser(description='Find numbers close to a given constant or expression')
     parser.add_argument('inval', metavar='X', type=float, nargs=1, help='the number to approximate with a constant')
+    parser.add_argument('--max_comp', type=int, help='Maximum complexity search depth', default=15)
+    parser.add_argument('--eps', type=float, help='Will exit search if term found within this epsilon', default=1e-9)
+    parser.add_argument('--search_depth', type=int, help='Will attempt this many terms before exiting', default=100000)
+    parser.add_argument('--confirm', type=float, help='If heuristic finds term with this confidence, will exit.', default=10)
+    parser.add_argument('--nodebug', dest='debug', action='store_const', default=True, const=False, help='If set, will stay quiet until answer is found.')
     pargs = parser.parse_args()
     X = pargs.inval[0]
-    print("You're looking for: {0}".format(X))
+    if pargs.debug:
+        print("Searching relevant terms for: {0}".format(X))
+    
     numfind = NumFinder()
+    numfind.set_max_complexity(pargs.max_comp).set_epsilon(pargs.eps)
+    numfind.set_search_depth(pargs.search_depth).set_confirm_found(pargs.confirm)
+    numfind.set_debug(pargs.debug)
     expr, cert = numfind.find(X)
-    print("It looks like: {0} with a certainty of: {1}".format(expr,cert))
+
+    print(":: {0} (Confidence: {1:.2f})".format(expr,cert))
     
 if __name__ == "__main__":
     main()
