@@ -131,15 +131,17 @@ def PowExpr(x,y):
 
 class NumFinder:
     def __init__(self):
-        self.set_max_complexity(100).set_epsilon(1e-12)
-        self.set_search_depth(100000).set_confirm_found(20)
+        #defaults
+        self.set_max_complexity(15).set_epsilon(1e-9)
+        self.set_search_depth(100000).set_confirm_found(10)
 
+        #base set of constants
         self.reset_constants().reset_unaries().reset_binaries()
 
     def reset_constants(self):
         self.constants = set()
         self.add_constant(Constant("pi",math.pi)).add_constant(Constant("e",math.e))
-        for n in range(1,101):
+        for n in range(1,11):
             self.add_constant(IntConst(n))
         return self
 
@@ -212,15 +214,18 @@ class NumFinder:
         tryThisMany = 0
         while len(exprPQ) > 0 and tryThisMany < self.search_depth:
             tryThisMany += 1
-            if tryThisMany % 10000 == 0:
+            if tryThisMany % 1000 == 0:
                 print("Tried so far: {0}".format(tryThisMany))
             _, newHeur, nextExpr = heapq.heappop(exprPQ)
+            if nextExpr.complexity() > allExpr.get(nextExpr.value(),(100,0))[0]:
+                continue
             if heur is None or heur > newHeur:
                 heur,bfsf=newHeur,nextExpr
                 print("best found so far: {0} (confidence: {1})".format(bfsf, -heur))
             if -heur > self.confirm_found:
                 break
 
+            #always try to expand along unaries
             for unry in self.unaries:
                 unryExpr = unry(nextExpr)
                 if unryExpr.complexity() >= self.max_complexity:
@@ -229,18 +234,20 @@ class NumFinder:
                 if unryValue not in allExpr or allExpr[unryValue][0] > unryComp:
                     heapq.heappush(exprPQ,(unryComp+unryHeur, unryHeur, unryExpr))
                     allExpr[unryValue]=(unryComp, unryExpr)
-            
+                    
+            #oh yeah this is wasteful but let's see if I can optimize it
             for bnry in self.binaries:
                 othBinExpr={}
-                for (comp,rhs) in allExpr.values():
-                    bnryExpr = bnry(nextExpr, rhs)
-                    if bnryExpr.complexity() >= self.max_complexity:
-                        continue
-                    bnryHeur, bnryValue, bnryComp = self.search_heuristic(X, bnryExpr)
-                    if bnryValue not in allExpr or allExpr[bnryValue][0] > bnryComp:
-                        heapq.heappush(exprPQ,(bnryComp+bnryHeur, bnryHeur, bnryExpr))
-                        othBinExpr[bnryValue]=(bnryComp, bnryExpr)
-                allExpr.update(othBinExpr)    
+                for (_,lhs) in allExpr.values():
+                    for (_,rhs) in allExpr.values():
+                        bnryExpr = bnry(lhs, rhs)
+                        if bnryExpr.complexity() >= self.max_complexity:
+                            continue
+                        bnryHeur, bnryValue, bnryComp = self.search_heuristic(X, bnryExpr)
+                        if bnryValue not in allExpr or allExpr[bnryValue][0] > bnryComp:
+                            heapq.heappush(exprPQ,(bnryComp+bnryHeur, bnryHeur, bnryExpr))
+                            othBinExpr[bnryValue]=(bnryComp, bnryExpr)
+            allExpr.update(othBinExpr)    
         return (bfsf, -heur)
 
 def main():
