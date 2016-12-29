@@ -5,6 +5,7 @@ import math
 import heapq
 
 class Expression:
+    _memorepr = None
     def complexity(self):
         return 1
 
@@ -24,7 +25,7 @@ class Expression:
         return "0"
 
     def __repr__(self):
-        return "Expr({0})".format(self)
+        return "Expr("+str(self)+")"
 
 class Constant(Expression):
     def __init__(self, name, inner_val):
@@ -48,6 +49,7 @@ class Unary(Expression):
         self.expr_func = exprFunc
         self._memovalue = None
         self._memocomp = None
+        self._memostr = None
 
     def complexity(self):
         if self._memocomp is None:
@@ -60,7 +62,9 @@ class Unary(Expression):
         return self._memovalue
 
     def __str__(self):
-        return "{0}({1})".format(self.expr_name, str(self.inner_expr))
+        if self._memostr is None:
+            self._memostr = "{0}({1})".format(self.expr_name, str(self.inner_expr))
+        return self._memostr
 
 class Binary(Expression):
     def __init__(self, exprName, innerExprL, innerExprR, complexFunc, exprFunc, infixFlag):
@@ -72,6 +76,7 @@ class Binary(Expression):
         self.infix_flag = infixFlag
         self._memovalue = None
         self._memocomp = None
+        self._memostr = None
 
     def complexity(self):
         if self._memocomp is None:
@@ -84,48 +89,50 @@ class Binary(Expression):
         return self._memovalue 
 
     def __str__(self):
-        if self.infix_flag:
-            return "({1}){0}({2})".format(self.expr_name, str(self.inner_expr_left), str(self.inner_expr_right))
-        else:    
-            return "{0}({1},{2})".format(self.expr_name, str(self.inner_expr_left), str(self.inner_expr_right))
+        if self._memostr is None:
+            if self.infix_flag:
+                self._memostr = "({1}){0}({2})".format(self.expr_name, str(self.inner_expr_left), str(self.inner_expr_right))
+            else:    
+                self._memostr = "{0}({1},{2})".format(self.expr_name, str(self.inner_expr_left), str(self.inner_expr_right))
+        return self._memostr
 
 def IntConst(n):
     return Constant(str(n),float(n))
 
 def SqrtExpr(x):
-    return Unary("sqrt", x, lambda x:x+2, math.sqrt)
+    return Unary("sqrt", x, lambda x:x+1, math.sqrt)
 
 def SinExpr(x):
-    return Unary("sin", x, lambda x:x+2, math.sin)
+    return Unary("sin", x, lambda x:x+1, math.sin)
 
 def CosExpr(x):
-    return Unary("cos", x, lambda x:x+2, math.cos)
+    return Unary("cos", x, lambda x:x+1, math.cos)
 
 def TanExpr(x):
-    return Unary("tan", x, lambda x:x+2, math.tan)
+    return Unary("tan", x, lambda x:x+1, math.tan)
 
 def LogExpr(x):
-    return Unary("log", x, lambda x:x+2, math.log)
+    return Unary("log", x, lambda x:x+1, math.log)
 
 def AddExpr(x,y):
-    return Binary("+", x, y, lambda x,y:(x+y)+3, lambda x,y:x+y, True)
+    return Binary("+", x, y, lambda x,y:(x+y)+2, lambda x,y:x+y, True)
 
 def SubtractExpr(x,y):
-    return Binary("-", x, y, lambda x,y:(x+y)+3, lambda x,y:x-y, True)
+    return Binary("-", x, y, lambda x,y:(x+y)+2, lambda x,y:x-y, True)
 
 def MultExpr(x,y):
-    return Binary("+", x, y, lambda x,y:(x+y)+3, lambda x,y:x*y, True)
+    return Binary("*", x, y, lambda x,y:(x+y)+2, lambda x,y:x*y, True)
 
 def DivExpr(x,y):
-    return Binary("/", x, y, lambda x,y:(x+y)+3, lambda x,y:x/y, True)
+    return Binary("/", x, y, lambda x,y:(x+y)+2, lambda x,y:x/y, True)
 
 def PowExpr(x,y):
-    return Binary("^", x, y, lambda x,y:(x+y)+3, lambda x,y:x**y, True)
+    return Binary("^", x, y, lambda x,y:(x+y)+2, lambda x,y:x**y, True)
 
 class NumFinder:
     def __init__(self):
-        self.set_max_complexity(30).set_epsilon(1e-9)
-        self.set_search_depth(100000).set_confirm_found(10)
+        self.set_max_complexity(100).set_epsilon(1e-12)
+        self.set_search_depth(100000).set_confirm_found(20)
 
         self.reset_constants().reset_unaries().reset_binaries()
 
@@ -199,7 +206,7 @@ class NumFinder:
         for expr in self.constants:
             heur, value, comp = self.search_heuristic(X, expr)
             allExpr[value]=(comp, expr)
-            exprPQ.append((heur,comp+heur,expr))
+            exprPQ.append((comp+heur,heur,expr))
         heapq.heapify(exprPQ)
 
         tryThisMany = 0
@@ -207,7 +214,7 @@ class NumFinder:
             tryThisMany += 1
             if tryThisMany % 10000 == 0:
                 print("Tried so far: {0}".format(tryThisMany))
-            newHeur, newComplexity, nextExpr = heapq.heappop(exprPQ)
+            _, newHeur, nextExpr = heapq.heappop(exprPQ)
             if heur is None or heur > newHeur:
                 heur,bfsf=newHeur,nextExpr
                 print("best found so far: {0} (confidence: {1})".format(bfsf, -heur))
@@ -220,7 +227,7 @@ class NumFinder:
                     continue
                 unryHeur, unryValue, unryComp = self.search_heuristic(X, unryExpr)
                 if unryValue not in allExpr or allExpr[unryValue][0] > unryComp:
-                    heapq.heappush(exprPQ,(unryHeur, unryComp+unryHeur, unryExpr))
+                    heapq.heappush(exprPQ,(unryComp+unryHeur, unryHeur, unryExpr))
                     allExpr[unryValue]=(unryComp, unryExpr)
             
             for bnry in self.binaries:
@@ -231,7 +238,7 @@ class NumFinder:
                         continue
                     bnryHeur, bnryValue, bnryComp = self.search_heuristic(X, bnryExpr)
                     if bnryValue not in allExpr or allExpr[bnryValue][0] > bnryComp:
-                        heapq.heappush(exprPQ,(bnryHeur, bnryComp+bnryHeur, bnryExpr))
+                        heapq.heappush(exprPQ,(bnryComp+bnryHeur, bnryHeur, bnryExpr))
                         othBinExpr[bnryValue]=(bnryComp, bnryExpr)
                 allExpr.update(othBinExpr)    
         return (bfsf, -heur)
