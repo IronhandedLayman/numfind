@@ -142,7 +142,7 @@ def main():
     parser.add_argument('--search_depth', type=int, help='Will attempt this many terms before exiting', default=100000)
     parser.add_argument('--confirm', type=float, help='If heuristic finds term with this Confidence, will exit.', default=10)
     parser.add_argument('--quiet', dest='debug', action='store_const', default=True, const=False, help='If set, will stay quiet until answer is found.')
-    parser.add_argument('--cfile', type=argparse.FileType('r'), default=None)
+    parser.add_argument('--cfile', type=argparse.FileType('r'), default=None, help='Uses a CSV formatted file to input constants')
     pargs = parser.parse_args()
 
     X = pargs.inval[0]
